@@ -58,6 +58,7 @@ class LoDoListViewController: UITableViewController {
             self.itemArray.append(textField.text!)
             
             self.tableView.reloadData()
+            // notes
       
         }
         alert.addTextField { (alertTextField) in
