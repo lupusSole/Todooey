@@ -11,16 +11,20 @@ import UIKit
 class LoDoListViewController: UITableViewController {
     
     
-   var itemArray = ["Feed Cat", "Feed Kevin","Feed Me"]
+   var itemArray = [Item]()
     var defaults = UserDefaults.standard
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view, typically from a nib.
-        if let items = defaults.array(forKey: "ToDoListArray") as? [String]{
-            itemArray = items
-        }
         
+        let newItem = Item()
+        newItem.title = "Feed Benny"
+        itemArray.append(newItem)
+        // Do any additional setup after loading the view, typically from a nib.
+        if let items = defaults.array(forKey: "ToDoListArray") as? [Item]{
+            itemArray = items
+        
+        }
     
     }
     
@@ -32,24 +36,26 @@ class LoDoListViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
         let cell = tableView.dequeueReusableCell(withIdentifier: "toDoItemCell", for: indexPath)
-        cell.textLabel?.text = itemArray[indexPath.row]
+        let item = itemArray[indexPath.row]
         
+        cell.textLabel?.text = item.title
+        
+        cell.accessoryType = item.done ? .checkmark : .none
+     
         return cell
-    }
+        }
+    
     
     //Mark = TableView Delegate Methods
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         //print(itemArray[indexPath.row])
         
-        if   tableView.cellForRow(at: indexPath)?.accessoryType == .checkmark{
-              tableView.cellForRow(at: indexPath)?.accessoryType = .none
-        } else {
-              tableView.cellForRow(at: indexPath)?.accessoryType = .checkmark
-        }
+        itemArray[indexPath.row].done = !itemArray[indexPath.row].done
         
         tableView.deselectRow(at: indexPath, animated: true)
-    }
+        tableView.reloadData()
+        }
     
     // add new item
     
@@ -61,7 +67,10 @@ class LoDoListViewController: UITableViewController {
         
         let action = UIAlertAction(title: "Add item", style: .default) { (action) in
             // what happen when add item clicked
-            self.itemArray.append(textField.text!)
+            
+            let newItem = Item()
+            newItem.title = textField.text!
+            self.itemArray.append(newItem)
             
             self.defaults.set(self.itemArray, forKey: "ToDoListArray")
             
@@ -83,4 +92,5 @@ class LoDoListViewController: UITableViewController {
     
 
 }
+
 
