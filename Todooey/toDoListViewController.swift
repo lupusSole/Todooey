@@ -7,12 +7,13 @@
 //
 
 import UIKit
-import CoreData
+import RealmSwift
 
 class LoDoListViewController: UITableViewController, UISearchBarDelegate {
     
     
-   var itemArray = [Item]()
+    var  toDoItems: Results <Item>?
+    let realm =  try! Realm()
     var selectedCategory : Category? {
         didSet{
             loadItems()
@@ -21,36 +22,29 @@ class LoDoListViewController: UITableViewController, UISearchBarDelegate {
     
     var defaults = UserDefaults.standard
     
-       let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
-
     override func viewDidLoad() {
         super.viewDidLoad()
-          let dataFilePAth = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("items.plist")
-        
-    
-        print(dataFilePAth!)
-        
-        // Do any additional setup after loading the view, typically from a nib.
-        if let items = defaults.array(forKey: "ToDoListArray") as? [Item]{
-            itemArray = items
-        
-        }
-    
+      
     }
     
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-       return itemArray.count
+       return toDoItems?.count ?? 1
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
         let cell = tableView.dequeueReusableCell(withIdentifier: "toDoItemCell", for: indexPath)
-        let item = itemArray[indexPath.row]
+        if let item = toDoItems?[indexPath.row] {
+            cell.textLabel?.text = item.title
+            
+            cell.accessoryType = item.done ? .checkmark : .none
+            
+        } else {
+            cell.textLabel?.text = "no  items added "
+        }
         
-        cell.textLabel?.text = item.title
-        
-        cell.accessoryType = item.done ? .checkmark : .none
+      
      
         return cell
         }
@@ -59,19 +53,22 @@ class LoDoListViewController: UITableViewController, UISearchBarDelegate {
     //Mark = TableView Delegate Methods
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        //print(itemArray[indexPath.row])
-        
-       // context.delete(itemArray[indexPath.row])
-         //itemArray.remove(at: indexPath.row)
-        
-        itemArray[indexPath.row].done = !itemArray[indexPath.row].done
-        saveItems()
+       
+        if let item = toDoItems?[indexPath.row]{
+            do{
+            try realm.write {
+              item.done = !item.done
+            }
+            }catch {
+                print("Error saving done status \(error)")
+            }
+        }
+        tableView.reloadData()
         
         tableView.deselectRow(at: indexPath, animated: true)
      
-        }
-    
-    // add new item
+        
+    }
     
     
     
@@ -83,16 +80,24 @@ class LoDoListViewController: UITableViewController, UISearchBarDelegate {
         
         let action = UIAlertAction(title: "Add item", style: .default) { (action) in
             // what happen when add item clicked
-            self.saveItems()
-            
          
             
-            let newItem = Item(context: self.context)
-            newItem.title = textField.text!
-            newItem.done = false
-            newItem.parentCategory = self.selectedCategory
-            self.itemArray.append(newItem)
+            if let currentCategory = self.selectedCategory{
+                
+                do {
+                try self.realm.write {
+                    let newItem = Item()
+                    newItem.title = textField.text!
+                    newItem.dateCreated = Date()
+                    currentCategory.items.append(newItem)
+                }
+               
+                } catch {
+                    print("error saving new items \(error)")
+                }
+            }
             
+       self.tableView.reloadData()
           
             
         }
@@ -108,70 +113,36 @@ class LoDoListViewController: UITableViewController, UISearchBarDelegate {
     
     }
     
-    func saveItems() {
-      
-        
-        do {
-          try context.save()
-            
-        } catch{
-            print("error saving context \(error)")
-            
-            
-        }
-        self.tableView.reloadData()
-        
-    }
+
     
-    func loadItems( with request: NSFetchRequest<Item> = Item.fetchRequest(), predicate: NSPredicate? = nil) {
-        
-        let categoryPredicate = NSPredicate(format: "parentCategory.name MATCHES %@ ", selectedCategory!.name!)
-        
-        if let additionalPredicate = predicate {
-            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [categoryPredicate, additionalPredicate])
-        } else {
-            request.predicate = categoryPredicate
+    func loadItems() {
+
+       toDoItems = selectedCategory?.items.sorted(byKeyPath: "title", ascending: true)
         }
     
-  
-        do{
-     itemArray = try context.fetch(request)
-        } catch {
-            print("error fetching data from context \(error)")
-        }
-        
-    }
+    
     
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
-        let request : NSFetchRequest<Item> = Item.fetchRequest()
-     
         
-        
-      let predicate = NSPredicate(format: "title CONTAINS %@[cd] ", searchBar.text!)
-        
-        
-        request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
-        
-        loadItems(with: request, predicate: predicate)
-       
-        
-        
+        toDoItems = toDoItems?.filter("title CONTAINS [cd] %@", searchBar.text!).sorted(byKeyPath: "dateCreated", ascending: true)
+        tableView.reloadData()
+
     }
-    
+//
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
         if searchBar.text?.count == 0 {
             loadItems()
-            
-            
+
+
             DispatchQueue.main.async {
                     searchBar.resignFirstResponder()
-            
+
             }
-        
+
         }
-    
+
     }
-    
+
  
 }
 
